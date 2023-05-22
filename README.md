@@ -1,9 +1,14 @@
+# Personal fork of [sandbar](https://github.com/kolunmi/sandbar)
+![screenshot](/screenshot.png "screenshot")
+# Original README.md
+<br>
+<br>
 <div align="center">
 <h1>sandbar</h1>
 
 dwm-like bar for [river](https://github.com/riverwm/river).
 
-![screenshot](/screenshot.png "screenshot")
+![screenshot](/screenshot-old.png "screenshot")
 </div>
 
 ## Dependencies

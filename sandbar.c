@@ -53,12 +53,6 @@
 	"	-font [FONT]				specify a font\n" \
 	"	-tags [NUMBER OF TAGS] [FIRST]...[LAST]	specify custom tag names\n" \
 	"	-vertical-padding [PIXELS]		specify vertical pixel padding above and below text\n" \
-	"	-active-fg-color [COLOR]		specify text color of active tags or monitors\n" \
-	"	-active-bg-color [COLOR]		specify background color of active tags or monitors\n" \
-	"	-inactive-fg-color [COLOR]		specify text color of inactive tags or monitors\n" \
-	"	-inactive-bg-color [COLOR]		specify background color of inactive tags or monitors\n" \
-	"	-urgent-fg-color [COLOR]		specify text color of urgent tags\n" \
-	"	-urgent-bg-color [COLOR]		specify background color of urgent tags\n" \
 	"Other\n"							\
 	"	-v					get version information\n" \
 	"	-h					view this help text\n"
@@ -125,12 +119,23 @@ static uint32_t height, textpadding, vertical_padding = 1;
 
 static bool hidden, bottom, hide_vacant, no_title, no_status_commands;
 
-static pixman_color_t active_fg_color = { .red = 0xeeee, .green = 0xeeee, .blue = 0xeeee, .alpha = 0xffff, };
-static pixman_color_t active_bg_color = { .red = 0x0000, .green = 0x5555, .blue = 0x7777, .alpha = 0xffff, };
-static pixman_color_t inactive_fg_color = { .red = 0xbbbb, .green = 0xbbbb, .blue = 0xbbbb, .alpha = 0xffff, };
-static pixman_color_t inactive_bg_color = { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
-static pixman_color_t urgent_fg_color = { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
-static pixman_color_t urgent_bg_color = { .red = 0xeeee, .green = 0xeeee, .blue = 0xeeee, .alpha = 0xffff, };
+static pixman_color_t tag_fg_active =               { .red = 0xcccc, .green = 0xcccc, .blue = 0xcccc, .alpha = 0xffff, };
+static pixman_color_t tag_bg_active =               { .red = 0x0000, .green = 0x5555, .blue = 0x7777, .alpha = 0xffff, };
+static pixman_color_t tag_fg_inactive =             { .red = 0xbbbb, .green = 0xbbbb, .blue = 0xbbbb, .alpha = 0xffff, };
+static pixman_color_t tag_bg_inactive =             { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
+static pixman_color_t tag_bg_inactive_unselected =  { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
+static pixman_color_t tag_fg_urgent =               { .red = 0x0000, .green = 0x5555, .blue = 0x7777, .alpha = 0xffff, };
+static pixman_color_t tag_bg_urgent =               { .red = 0xcccc, .green = 0xcccc, .blue = 0xcccc, .alpha = 0xffff, };
+
+static pixman_color_t titlebar_fg =                 { .red = 0xcccc, .green = 0xcccc, .blue = 0xcccc, .alpha = 0xffff, };
+static pixman_color_t titlebar_bg =                 { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
+static pixman_color_t titlebar_bg_unselected =      { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
+static pixman_color_t layout_fg =                   { .red = 0xbbbb, .green = 0xbbbb, .blue = 0xbbbb, .alpha = 0xffff, };
+static pixman_color_t layout_bg =                   { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
+static pixman_color_t layout_bg_unselected =        { .red = 0xffff, .green = 0xffff, .blue = 0xffff, .alpha = 0xffff, };
+static pixman_color_t status_fg =                   { .red = 0xeeee, .green = 0xeeee, .blue = 0xeeee, .alpha = 0xffff, };
+static pixman_color_t status_bg =                   { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
+static pixman_color_t status_bg_unselected =        { .red = 0x2222, .green = 0x2222, .blue = 0x2222, .alpha = 0xffff, };
 
 static bool run_display;
 
@@ -380,61 +385,59 @@ draw_frame(Bar *bar)
 		const bool occupied = bar->ctags & 1 << i;
 		const bool urgent = bar->urg & 1 << i;
 		
-		if (hide_vacant && !active && !occupied && !urgent)
+		if (hide_vacant && !active && !occupied && !urgent && 
+                !(strcmp(tags[i], "T") == 0 || strcmp(tags[i], "q") == 0 || strcmp(tags[i], "w") == 0))
 			continue;
 
-		pixman_color_t *fg_color = urgent ? &urgent_fg_color : (active ? &active_fg_color : &inactive_fg_color);
-		pixman_color_t *bg_color = urgent ? &urgent_bg_color : (active ? &active_bg_color : &inactive_bg_color);
+		pixman_color_t *fg_color = urgent ? &tag_fg_urgent : (active ? &tag_fg_active : &tag_fg_inactive);
+		pixman_color_t *bg_color = urgent ? &tag_bg_urgent : (active ? &tag_bg_active : &tag_bg_inactive);
 		
-		if (!hide_vacant && occupied) {
-			pixman_image_fill_boxes(PIXMAN_OP_SRC, foreground,
-						fg_color, 1, &(pixman_box32_t){
-							.x1 = x + boxs, .x2 = x + boxs + boxw,
-							.y1 = boxs, .y2 = boxs + boxw
-						});
-			if ((!bar->sel || !active) && boxw >= 3) {
-				/* Make box hollow */
-				pixman_image_fill_boxes(PIXMAN_OP_SRC, foreground,
-							&(pixman_color_t){ 0 },
-							1, &(pixman_box32_t){
-								.x1 = x + boxs + 1, .x2 = x + boxs + boxw - 1,
-								.y1 = boxs + 1, .y2 = boxs + boxw - 1
-							});
-			}
-		}
+        if(occupied) {
+		    pixman_image_fill_boxes(PIXMAN_OP_SRC, foreground,
+		    			fg_color, 1, &(pixman_box32_t){
+		    				.x1 = x, .x2 = x + (!active ? 1 : 7),
+		    				.y1 = 0, .y2 = 1 
+		    			});
+        }
 		
 		x = draw_text(tags[i], x, y, foreground, background, fg_color, bg_color,
 			      bar->width, bar->height, bar->textpadding, false);
 	}
 
-	Seat *seat;
-	wl_list_for_each(seat, &seat_list, link) {
-		x = draw_text(seat->mode, x, y, foreground, background,
-			      &inactive_fg_color, &inactive_bg_color, bar->width,
-			      bar->height, bar->textpadding, false);
-	}
+	//Seat *seat;
+	//wl_list_for_each(seat, &seat_list, link) {
+	//	x = draw_text(seat->mode, x, y, foreground, background,
+	//		      &titlebar_fg, &titlebar_bg_unselected, bar->width,
+	//		      bar->height, bar->textpadding, false);
+	//}
 
 	if (bar->mtags & bar->ctags) {
-		x = draw_text(bar->layout, x, y, foreground, background,
-			      &inactive_fg_color, &inactive_bg_color, bar->width,
+        char *str = bar->layout;
+        if(bar->layout != NULL) {
+            if(strcmp(bar->layout, "rivertile - left") == 0)
+                str = "[]=";
+            
+        }
+		x = draw_text(str, x, y, foreground, background,
+			      &layout_fg, &layout_bg, bar->width,
 			      bar->height, bar->textpadding, false);
 	}
 	
 	uint32_t status_width = TEXT_WIDTH(bar->status, bar->width - x, bar->textpadding, true);
 	draw_text(bar->status, bar->width - status_width, y, foreground,
-		  background, &inactive_fg_color, &inactive_bg_color,
+		  background, &status_fg, &status_bg,
 		  bar->width, bar->height, bar->textpadding, true);
 
 	if (!no_title) {
 		x = draw_text(bar->title, x, y, foreground, background,
-			      bar->sel ? &active_fg_color : &inactive_fg_color,
-			      bar->sel ? &active_bg_color : &inactive_bg_color,
+			      bar->sel ? &titlebar_fg: &titlebar_fg,
+			      bar->sel ? &titlebar_bg: &titlebar_bg_unselected,
 			      bar->width - status_width, bar->height, bar->textpadding,
 			      false);
 	}
 
 	pixman_image_fill_boxes(PIXMAN_OP_SRC, background,
-				bar->sel ? &active_bg_color : &inactive_bg_color, 1,
+				bar->sel ? &titlebar_bg: &titlebar_bg_unselected, 1,
 				&(pixman_box32_t){
 					.x1 = x, .x2 = bar->width - status_width,
 					.y1 = 0, .y2 = bar->height
@@ -1241,36 +1244,6 @@ main(int argc, char **argv)
 			if (++i >= argc)
 				DIE("Option -vertical-padding requires an argument");
 			vertical_padding = MAX(MIN(atoi(argv[i]), 100), 0);
-		} else if (!strcmp(argv[i], "-active-fg-color")) {
-			if (++i >= argc)
-				DIE("Option -active-fg-color requires an argument");
-			if (parse_color(argv[i], &active_fg_color) == -1)
-				DIE("malformed color string");
-		} else if (!strcmp(argv[i], "-active-bg-color")) {
-			if (++i >= argc)
-				DIE("Option -active-bg-color requires an argument");
-			if (parse_color(argv[i], &active_bg_color) == -1)
-				DIE("malformed color string");
-		} else if (!strcmp(argv[i], "-inactive-fg-color")) {
-			if (++i >= argc)
-				DIE("Option -inactive-fg-color requires an argument");
-			if (parse_color(argv[i], &inactive_fg_color) == -1)
-				DIE("malformed color string");
-		} else if (!strcmp(argv[i], "-inactive-bg-color")) {
-			if (++i >= argc)
-				DIE("Option -inactive-bg-color requires an argument");
-			if (parse_color(argv[i], &inactive_bg_color) == -1)
-				DIE("malformed color string");
-		} else if (!strcmp(argv[i], "-urgent-fg-color")) {
-			if (++i >= argc)
-				DIE("Option -urgent-fg-color requires an argument");
-			if (parse_color(argv[i], &urgent_fg_color) == -1)
-				DIE("malformed color string");
-		} else if (!strcmp(argv[i], "-urgent-bg-color")) {
-			if (++i >= argc)
-				DIE("Option -urgent-bg-color requires an argument");
-			if (parse_color(argv[i], &urgent_bg_color) == -1)
-				DIE("malformed color string");
 		} else if (!strcmp(argv[i], "-tags")) {
 			if (++i + 1 >= argc)
 				DIE("Option -tags requires at least two arguments");
@@ -1318,8 +1291,10 @@ main(int argc, char **argv)
 	fcft_set_scaling_filter(FCFT_SCALING_FILTER_LANCZOS3);
 	if (!(font = fcft_from_name(1, (const char *[]) {fontstr}, NULL)))
 		DIE("Could not load font");
-	textpadding = font->height / 2;
-	height = font->height + vertical_padding * 2;
+	//textpadding = font->height / 2;
+	textpadding = 8;
+	//height = font->height + vertical_padding * 2;
+	height = 26;
 
 	/* Configure tag names */
 	if (!tags) {
