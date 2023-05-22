@@ -1,7 +1,7 @@
 # Personal fork of [sandbar](https://github.com/kolunmi/sandbar)
 ![screenshot](/screenshot.png "screenshot")
-# Original README.md
 <br>
+# Original README.md
 <br>
 <div align="center">
 <h1>sandbar</h1>
