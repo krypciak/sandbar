@@ -386,7 +386,8 @@ draw_frame(Bar *bar)
 		const bool urgent = bar->urg & 1 << i;
 		
 		if (hide_vacant && !active && !occupied && !urgent && 
-                !(strcmp(tags[i], "T") == 0 || strcmp(tags[i], "q") == 0 || strcmp(tags[i], "w") == 0))
+                !(strcmp(tags[i], "T") == 0 || strcmp(tags[i], "q") == 0 ||
+                  strcmp(tags[i], "w") == 0 || strcmp(tags[i], "e") == 0))
 			continue;
 
 		pixman_color_t *fg_color = urgent ? &tag_fg_urgent : (active ? &tag_fg_active : &tag_fg_inactive);
